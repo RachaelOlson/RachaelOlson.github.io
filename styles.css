@@ -16,5 +16,5 @@ body{
 
 .navbar{
   background-color:#bf6b99;
-  color:white;
+  color:white !important;
 }
