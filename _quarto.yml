@@ -1,21 +1,23 @@
 project:
-  type: website
-  output-dir: docs
+  type: website #specifies as a website
+  output-dir: docs #output directory saved while rendering
+  render: 
+    - "*.qmd" #render all files with a .qmd
 
 website:
-  title: "RachaelOlson.github.io"
-  navbar:
+  title: "Rachael Olson" #title displayed on the website
+  navbar: #navigation bar settings
     left:
-      - href: index.qmd
-        text: Home
-      - about.qmd
-
+      - href: index.qmd #qmd file for the home page
+        text: Home #title name on the navigation bar 
+      - href: Interactive_Mini_Project_One_Olson.qmd #maps .qmd link
+        text: Interactive Choropleth Maps
+      - href: table_scrap_mini_project.qmd #acquistion .qmd link
+        text: Table Scraping Acquistion 
+        
+#output formating      
 format:
-  html:
-    theme: cosmo
-    css: styles.css
-    toc: true
-
-editor: visual
-
-
+  html: 
+    theme: materia
+    css: styles.css #link to stylistic choices for font, coloring, and stylistic choices
+    toc: true #table of contents page

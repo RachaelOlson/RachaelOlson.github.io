@@ -1,11 +1,71 @@
 ---
-title: "RachaelOlson.github.io"
+title: "Rachael Olson" #title of website
+about:
+  id: heading 
+  template: trestles #template for website
+  image: images/photo.jpeg #image upload path
+  links: 
+   - icon: github #the icon image to display the link to communication
+     text: Github #text next to icon to explain icon
+     href: https://github.com/RachaelOlson #link to the communication
+   - icon: linkedin
+     text: Linkedin
+     href: https://www.linkedin.com/in/rachael-olson-2026-stolaf
+   - icon: envelope
+     text: Email
+     href: mailto:olson63@stolaf.edu
 ---
 
-This is a Quarto website.
+::: {#heading}
+### Rachael Olson
 
-To learn more about Quarto websites visit <https://quarto.org/docs/websites>.
+Junior Mathematics Major with a Statistics and Data Science Concentration
 
-```{r}
-1 + 1
-```
+St. Olaf College
+
+Graduation: May 2026
+
+### Academic Achievements and Engagement
+
+*Honors and Awards*
+
+-   Dean's List
+
+-   Chi Alpha Sigma
+
+*Extracurricular Activities*
+
+-   Association of Women and Math \| Treasurer
+
+-   Sports Analytics Club \| Vice President
+
+-   St. Olaf Swim and Dive Team \| Athlete
+:::
+
+### Experience
+
+*Orientation to Academics and Resources (SOAR) Leader \| Academic Success Center \| 2023 - present*
+
+*Head Swim Coach \| Missouri Valley Area Swim Team \| 2023 - 2024*
+
+### Research Experience
+
+*Sport Data Analysis \| Independent Research \| 2024*
+
+-   Analyzed trends through a research review of sports literature.
+
+*Research in Linear Dynamics \| Directed Undergraduate Research \| 2025*
+
+-   Examining the field of linear dynamics through theoretical framework and research into hypercyclicity.
+
+### Skills
+
+*Programming Languages:*
+
+-   Basic Proficiency: Python and Java
+
+-   Intermediate Proficiency: R, Overleaf, and Mathematica
+
+*Speaking Languages:*
+
+-   American Sign Language and Basic Proficiency in Spanish

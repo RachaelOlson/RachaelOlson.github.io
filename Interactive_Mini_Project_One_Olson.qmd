@@ -1,0 +1,247 @@
+---
+title: "Interactive and Informative Maps "
+subtitle: "Analysis of the Leading Causes of Death Across the Contential 48 States"
+format: html
+editor_options: 
+  chunk_output_type: console
+---
+
+# Introduction
+
+The dataset used in this analysis is looking into the top ten leading causes of death in the United States from 1999 to 2017. However, for the purposes of this analysis we will only examine the year of 2017, as there were many changes in healthcare during this time, including two new approved cancer treatments (Seervai). Collected by the National Center of Health Statistics, the data is based on death certificates across all 50 states, including the Distinct of Columbia. For the purposes of plotting, we will only examine the continental 48 states. The age-adjusted death rate, per 100,000 population, helps examine the standardize death rates across various populations with accounting for different age distributions. The 2000 U.S. population is used as the standard for comparisons. In regards to the census, the years after 2010 are referred to as the postcensal population estimate as well as the census years accounting for the actual census data. For the years before 2010, the death rates are based on estimates made over time. To begin this analysis, we will look into the age-adjusted death rates across the 48 states.
+
+```{r}
+#| include: false
+
+#load packages
+library(readr)
+library(tidyverse)
+library(leaflet)
+library(htmltools)
+library(glue)
+library(maps)
+library(viridis)
+library(sf)
+library(ggplot2)
+library(dplyr)
+
+#dataset
+US_Leading_Death <- read_csv("/Users/rachaelolson/Desktop/SDS 264/NCHS_Leading_Causes_of_Death_US.csv")
+US_Leading_Death
+```
+
+```{r}
+#| include: false
+#state map data
+us_states <- map_data("state")
+```
+
+```{r}
+#| include: false
+
+#adjusting the dataset to look into specific areas
+states_adjust_death <- US_Leading_Death |>
+  rename(Age_Adjust_Death_Rate = `Age-adjusted Death Rate`) |>
+  select(State, Age_Adjust_Death_Rate, Year) |>
+  filter(!(State %in% c("Alaska","Hawaii","District of Columbia","United States"))) |> 
+  mutate(State = str_to_lower(State)) |>
+  filter(Year == "2017") |>
+  group_by(State) |> 
+  summarize(avg_age_adj_death = mean(Age_Adjust_Death_Rate)) #mean of death rate for each state
+```
+
+# Plot one: Static Plot of Age-Adjusted Death Rate by State
+
+```{r}
+#| echo: false
+
+#join dataset with the states information and create bins
+states_adjust_death |>
+  right_join(us_states, by = c("State" = "region")) |> 
+  rename(region = State) |>
+  mutate(avg_age_adj_death = cut(avg_age_adj_death,
+                                     breaks = c(90, 100, 110, 120, 130, 140, 150, Inf))) |>
+  ggplot(aes(x = long, y = lat, group = group)) + #create map
+  geom_polygon(aes(fill = avg_age_adj_death), color = "black") +
+  scale_fill_viridis_d() +
+  labs(title = "Age-Adjusted Death Rate Across the U.S. States",
+       fill = "Age-Adjusted Death Rate",
+       caption = "Data source:catalog.data.gov/dataset/nchs-leading-causes-of-death-united-states. ",
+       x = "Longitude",
+       y = "Latitude")
+```
+
+**This plot examines the relationship between the age-adjusted death rate and the continental U.S. states within the year of 2017. The age-adjusted death rate is split up into various bins that can account for a detailed picture of these rates across all states. As one may see majority of the states fall within the 100 to 130 range with a few states falling above and below this average. However, West Virginia and Mississippi demonstrate the highest-death rates in the 48 states, widely passing all of the other states. Illustrating that these states have a disproportionately high number of deaths compared to its overall population per 100,000. A few reasons for this could be heath issues, such as higher rates of chronic diseases, and other social factors such as limited access to proper foods or healthcare. This large value for age-adjusted death rate is intriguing, so we will examine it further in our next visualization.**
+
+```{r}
+#| include: false
+
+state_sf <- read_sf("https://rstudio.github.io/leaflet/json/us-states.geojson")  #<2>
+class(state_sf) #<3>
+state_sf
+
+#Making bins for density
+state_sf <- state_sf |>
+  mutate(density_intervals = cut(density, n = 8,
+          breaks = c(90, 100, 110, 120, 130, 140, 150, Inf))) |>
+  filter(!(name %in% c("Alaska", "Hawaii", "District of Columbia","United States"))) |>
+  rename(State = `name`) |>
+  mutate(State = str_to_lower(State)) 
+```
+
+```{r}
+#| include: false
+
+leading_death_cause <- US_Leading_Death |>
+  rename(cause_name = `Cause Name`) |>
+  filter(!(State %in% c("Alaska","District of Columbia","United States"))) |>
+  filter(!(cause_name %in% c("All causes"))) |>
+  group_by(State, cause_name) |>
+  summarize(total_deaths = sum(Deaths, na.rm = TRUE)) |>
+  group_by(State) |>
+  slice_max(total_deaths, n = 1) |>
+  ungroup() |>
+  mutate(State = str_to_lower(State))
+```
+
+## Plot two: Interactive Plot of Age-Adjusted Death Across U.S. States
+
+```{r}
+#| echo: false
+
+#Create bins and color palette
+bins <-  c(90, 100, 110, 120, 130, 140, 150, Inf)
+pal <- colorBin("RdYlBu", domain = state_sf$density, bins = bins)
+
+#Merge the states dataset with the original dataset
+merge_states <- right_join(state_sf, states_adjust_death, by ="State")
+
+
+#Hover labels
+merge_states <- merge_states |>
+  filter(!is.na(avg_age_adj_death)) |>
+  mutate(State = str_to_title(State)) |>
+  mutate(labels = str_c(State, ": ", round(avg_age_adj_death,2), " per 100,000 people"))
+
+labels <- lapply(merge_states$labels, HTML)
+
+#creation of interactive plot
+leaflet(merge_states) |>
+  setView(-96, 37.8, 3.5) |> #set initial view
+  addTiles() |>
+  addPolygons( #polygons for each state
+    dashArray = "",
+    fillColor = ~colorNumeric("RdYlBu", domain = merge_states$avg_age_adj_death)(merge_states$avg_age_adj_death),
+    weight = 3,
+    opacity = 2,
+    color = "white",
+    fillOpacity = 0.8,
+    highlightOptions = highlightOptions( #add highlight while hovering
+      weight = 4,
+      color = "666",
+      dashArray = "",
+      fillOpacity = 0.7,
+      bringToFront = TRUE),
+    label = labels,
+    labelOptions = labelOptions( #label appearance
+      style = list("font-weight" = "normal", padding = "3px 8px"),
+      textsize = "15px",
+      direction = "auto")) |>
+  addLegend(pal = pal,
+            values = ~avg_age_adj_death, 
+            opacity = 0.7, 
+            title = NULL, 
+            position = "bottomright")
+```
+
+**This interactive plot, again, shows a comparison between age-adjusted death rate and their respective state. West Virginia and Mississippi have the highest age-adjusted death rate. While California and New York have the lowest age-adjusted death rate. The general area of the South has appears to have a higher age-adjusted death rate, while the West appears to be leaning more towards a lower age-adjusted death rate.** *Note: This data was sourced from the U.S. Department of Health & Human Services; catalog.data.gov/dataset/nchs-leading-causes-of-death-united-states.*
+
+# Plot Three: Static Plot of the Leading Cause of Death for Each Continental U.S. State
+
+```{r}
+#| include: false
+
+leading_death_cause <- US_Leading_Death |>
+  rename(cause_name = `Cause Name`) |>
+  filter(!(State %in% c("Alaska","District of Columbia","United States"))) |>
+  filter(!(cause_name %in% c("All causes"))) |>
+  group_by(State, cause_name) |>
+  summarize(total_deaths = sum(Deaths, na.rm = TRUE)) |>
+  group_by(State) |>
+  slice_max(total_deaths, n = 1) |>
+  ungroup() |>
+  mutate(State = str_to_lower(State))
+```
+
+```{r,fig.cap = "This choropleth plot depicts the leading cause of death within the forty-eight continental U.S. states. The x- axis represents the longitude ranging from -130 to -60 degrees, while the y-axis represents the latitude ranging from 25 to 50 degrees. Therefore, including the entire map of the forty-eight states. The two leading causes of death across America by far is cancer and heart disease. Cancer is represented by the common association color of pink, whereas heart disease is represented by red. With cancer only accounting for approximately eight states, heart disease is a clear number one cause of death as it leads approximately forty states. Hence, the relationship between the leading cause of death is represented clearly by the vast number of states who tragically have large amount of passing due to their cause, where primarily heart disease is represented."}
+#| echo: false
+
+leading_death_cause |>
+  right_join(us_states, by = c("State" = "region")) |>
+  rename(region = State) |>
+  ggplot(mapping = aes(x = long, y = lat, group = group)) + 
+  geom_polygon(aes(fill = cause_name), color = "black") +
+  labs(title = "Leading Cause of Death within Each State",
+       fill = "Cause of Death",
+       caption = "Data source:catalog.data.gov/dataset/nchs-leading-causes-of-death-united-states. ",
+       x = "Longitude",
+       y = "Latitude") +
+  scale_fill_manual(values = c("Heart disease" = "red",
+                               "Cancer" = "pink"))
+```
+
+**This plot examines the relationship between the leading causes of death within each continental state. As one may see there are two primary causes of death throughout America, cancer and heart disease. There are approximately eight states whose leading causes of death are cancer. This proves interesting as there are four states all bordering each other in the Northeast part of the country whose leading cause is cancer. Reasons for this could be due to environmental exposures, genetics and family history, access to healthcare, and many others. The other forty states being represented, possess the leading cause of death to heart disease. This large majority is shell-shocking and could provoke more research into the area of heart disease, as a large number of states attribute this terrible disease to their leading cause of death.**
+
+## Plot Four: Interactive Plot of the Apparent Leading Cause of Death in Each State
+
+```{r}
+#| echo: false
+
+merge_lead_states <- right_join(state_sf, leading_death_cause, by ="State")
+
+merge_lead_states <- merge_lead_states |>
+  mutate(State = str_to_title(State)) |>
+  mutate(leading_labels = str_c(State, "'s leading cause of death is ", cause_name,
+                                "<br> with  the total number being ", total_deaths, " people." ))
+
+
+leading_labels <- lapply(merge_lead_states$leading_labels, HTML)
+
+bins <- c(0, 1500, 5000, 10000, 50000, 100000, 500000, 1000000, Inf)
+palet <- colorBin("RdYlBu", domain = merge_lead_states$total_deaths, bins = bins)
+
+
+leaflet(merge_lead_states) |>
+  setView(-96, 37.8, 4) |>
+  addTiles() |>
+  addPolygons(
+    fillColor = ~palet(total_deaths),
+    weight = 3,
+    opacity = 3,
+    color = "white",
+    dashArray = "3",
+    fillOpacity = 0.7,
+    highlightOptions = highlightOptions(
+      weight = 7,
+      color = "#666",
+      dashArray = "",
+      fillOpacity = 0.9,
+      bringToFront = TRUE),
+    label = leading_labels,
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", padding = "3px 8px"),
+      textsize = "15px",
+      direction = "auto")) 
+```
+
+**This interactive map demonstrates the leading cause of death in a new light. It is associated with the number of people who have sadly passed from the state's leading cause of death. Observe that heart disease in California has affected over a million people since 1999 to 2017. Now, this plot does not account for the number of people in each state, however, it does represent the souls who have sadly passed from each disease in each state. Furthering the need for research to be conducted for these causes within each state as they are more and more prevalent among their citizens.** *Note: This data was sourced from the U.S. Department of Health & Human Services; catalog.data.gov/dataset/nchs-leading-causes-of-death-united-states.*
+
+# Conclusion
+
+This analysis of the leading causes of death in the continental United States for 2017 demonstrates significant regional and health differences across the U.S. For instance, as we saw the states of West Virginia and Mississippi show very high age-adjusted death rates, suggesting various social factors and other causes that may lead to these alarming rates. In the first interactive plot, we saw that the South generally has higher death rates, compared to the West where there exist lower rates of age-adjusted death. Furthermore, cancer and heart disease are the two distinct leading causes of death across the United States. The emergence of these two leading causes of death warrant further research being conducted into these areas of healthcare. In conclusion, there needs to be more effort focused on finding ways to combat these leading causes of death as well as having regional age-adjusted death rates at alarming rates.
+
+# References
+
+Seervai, Shanoor, and David Blumenthal. “10 Ways Health Care in America Changed in 2017.” The Commonwealth Fund, 2 Jan. 2018, www.commonwealthfund.org/blog/2018/10-ways-health-care-america-changed-2017.
+
+“U.S. Department of Health & Human Services - NCHS - Leading Causes of Death: United States.” Catalog, Publisher Centers for Disease Control and Prevention, 21 Apr. 2022, catalog.data.gov/dataset/nchs-leading-causes-of-death-united-states.
