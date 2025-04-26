@@ -10,9 +10,9 @@ website:
     left:
       - href: index.qmd #qmd file for the home page
         text: Home #title name on the navigation bar 
-      - href: Interactive_Mini_Project_One_Olson.qmd #maps .qmd link
+      - href: Interactive_Mini_Project_One_Olson.qmd 
         text: Interactive Choropleth Maps
-      - href: table_scrap_mini_project.qmd #acquistion .qmd link
+      - href: table_scrap_mini_project.qmd 
         text: Table Scraping Acquistion 
       - href: Mini_Project_4_Olson.qmd
         text: Text Analysis Techniques
