@@ -1,0 +1,186 @@
+---
+title: "An Analysis of Taylor Swift's Lyrics"
+author: "Rachael Olson"
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| include: FALSE
+
+library(tidyverse)
+library(tidytext)
+library(textdata)
+library(wordcloud)
+library(wordcloud2)
+library(igraph)
+library(ggraph)
+library(dplyr)
+library(viridis)
+library(ggthemes)
+library(stopwords)
+```
+
+
+# Introduction
+
+Taylor Swift is known for her emotional ties to her words, detailed storytelling, empowering songs, and the various genres she has covered throughout her time in the music industry. In this analysis, I will examine her words through frequency, emotions, empowering themes, and other components. This data was acquired from Alice Zhao's github page(adashofdata), where Zhao is  a data scientist and an instructor at Northwestern University. This data only contains music from her first 10 albums and the lyrics are only containing parts of her music. Alice Zhao gathered the data through the Genius Lyrics API and Spotify API. Throughout this analysis, this data will be demonstrated through various regular expressions, text analysis, and string operations. 
+
+
+```{r}
+#load dataset
+library(readxl)
+ts_data <- read_excel("~/Desktop/SDS 264/Taylor_Swift_Genius_Data.xlsx")
+
+#smart stop words
+smart_stop_words <- get_stopwords(source = "smart")
+
+#data cleaning: three strings and two regex
+ts_data <- ts_data |>
+  mutate(Lyrics = str_to_lower(Lyrics), #string the lyrics to lowercase
+         Lyrics = str_replace_all(Lyrics, "\\d+",""), #replace numbers
+         Lyrics = str_replace_all(Lyrics, "\\b\\w+'\\w+\\b", " ")) #removes words with apostrophes
+```
+
+
+# First Plot: Analysis of Commonly Used Word by Taylor Swift
+```{r}
+#| message: FALSE
+#initial analysis of commonly used words by Taylor Swift
+ts_data |>
+  unnest_tokens(word, Lyrics) |> #splits lyrics into tokens
+  anti_join(smart_stop_words) |> #eliminates commonly used words
+  count(word, sort = TRUE) |> #counts and sorts from most to least used words
+  slice_max(n, n = 20) |> 
+  ggplot(aes(x= fct_reorder(word, n), y = n, fill  = n)) + #shows a commonly used words top to bottom
+  geom_col() +
+  coord_flip() +
+  labs(title =  "Most Frequent Words in Taylor Swift's Songs",
+       x = "Words",
+       y = "Frequency",
+       fill = "Frequency",
+       caption = "Data from: https://github.com/adashofdata/taylor_swift_data.git") +
+  scale_fill_gradient(low = "#f9c5d1", high = "#d50073") +  # Light pink to hot pink
+  theme_classic()
+
+```
+
+This plot demonstrates that words such as *love* and *time* are her most frequently used words despite commonly used words such as I and my. This demonstrates emotional connection in her words as these two words suggest that her words are rooted in both affection adn reflection.
+
+
+# Second Plot: Positive and Negatively Related Words in Taylor Swift Songs
+```{r}
+#| message: FALSE
+#| warning: FALSE
+
+afinn_sentiments <- get_sentiments(lexicon = "afinn") #score from -5 to +5
+bing_sentiments <- get_sentiments(lexicon = "bing") #binary(+/-)
+nrc_sentiments <- get_sentiments(lexicon = "nrc") #emotion words
+
+#sentiment analysis one
+ts_data |>
+  unnest_tokens(word, Lyrics) |> #splits lyrics into tokens
+  anti_join(smart_stop_words) |> #get rid of the stop words
+  inner_join(bing_sentiments) |> #+/-
+  count(sentiment, word, sort = TRUE) |>
+  group_by(sentiment) |>
+  slice_max(n, n = 10) |>
+  ungroup() |>
+  ggplot(aes(x = fct_reorder(word, n), y = n, fill = sentiment)) +
+    geom_col() +  
+    coord_flip() +
+    facet_wrap(~ sentiment, scales = "free") +
+  labs(title = "Positively and Negatively Used Words in Taylor Swift's Songs",
+       x = "Words",
+       y = "Frequency",
+       fill = "Word Sentiment",
+       caption = "Data from: https://github.com/adashofdata/taylor_swift_data.git") +
+  theme_bw() +
+  scale_fill_manual(values = c(positive = "#009E60", negative = "#D70040"))
+```
+
+# Third Plot: Emotions Expressed in Taylor Swift's Lyrics
+```{r}
+#| message: FALSE
+#| warning: FALSE
+
+#sentiment analysis two
+ts_data |>
+  unnest_tokens(word, Lyrics) |>
+  inner_join(nrc_sentiments) |>
+  count(sentiment, sort = TRUE) |>
+  ggplot(aes(x = fct_reorder(sentiment, n), y = n, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip () +
+  labs(title = "Expressed Emotions in Taylor Swift's Lyrics",
+       x = "Emotions",
+       y = "Frequency",
+       caption = "Data from: https://github.com/adashofdata/taylor_swift_data.git") +
+  scale_fill_brewer(palette = "Paired") +
+  theme_bw()
+```
+
+These past two graphs demonstrates Taylor Swift's lyrical blend that contains joyful notes with emotional notes. This represents her duality in sentiment that contributes to why so many people relate to her music.
+
+# Word Cloud: Empowering Words in Taylor Swift's Lyrics
+```{r}
+#| message: FALSE
+# regex use
+# only filtered for commonly associated words to empowerment
+empower_words <- ts_data |>
+  unnest_tokens(word, Lyrics) |> #words from lyrics
+  filter(str_detect(word,"\\b(fight|strong|stand|rise|power|worthy|enough|brave|smart|work|confident|strength|advocate|courageous)\\b")) |> #filter for empowerment words
+  count(word, sort = TRUE)
+
+#text analysis: wordcloud
+wordcloud(
+  words = empower_words$word, 
+  freq = empower_words$n, 
+  scale = c(4.5, 1),
+  max.words = 10, 
+  random.order = TRUE, 
+  rot.per = 0.15,
+  colors = brewer.pal(6, "Accent"))
+```
+
+In this word cloud, words such as enough, fight, brave, and strong are just a few strongly empowering words that are represented throughout her music. These words are not solely representing the grasp of the lyrics themselves, as words are typically more powerful together, as well as give a clearer picture of the words they are associated with. 
+
+# Fourth Plot: Two Word Links Within Taylor Swift's Music
+```{r}
+#| message: FALSE
+
+ts_two <- ts_data |> #making every two words its own row
+  unnest_tokens(bigram, Lyrics, token = "ngrams", n = 2) |> #two words together
+  filter(bigram != "NA") |>
+  separate(bigram, c("word_one", "word_two"), sep = " ") |> #seperate two words
+  filter(!word_one %in% smart_stop_words$word,
+         !word_two %in% smart_stop_words$word) |> #filter for stop words
+  count(word_one, word_two, sort = TRUE)
+
+#lots of repeated words back to back
+ts_two |> head(20)
+
+#two word graph
+two_graph <- ts_two |>
+  filter(word_one != word_two) |>
+  filter(n > 8) |>
+  graph_from_data_frame()
+
+#directed tree of two word links
+ggraph(two_graph, layout = "fr") +
+  geom_edge_link(show.legend = FALSE, color = "hotpink")+ #lines; no legend
+  geom_node_point(color = "pink", size = 5) + #point markers
+  geom_node_text(aes(label = name), vjust = 1.5, hjust = 1.2, color = "darkgreen") + #word labels
+  theme_void()
+```
+
+This graph represents words that are correlated together more than eight times. Eliminating stop words and repeated words helps demonstrate the more commonly correlated words together. Demonstrating poetic phrases and repeated phrases gives more insight into the lyrics and how they are created and placed together to make a Taylor Swift song. 
+
+# Conclusion
+
+This analysis looked through various strings, regular expressions, and text analysis to examine Taylor Swift's crafting of her words within her first ten albums. From romantic themes to emotional lows to empowering chants, there is a wide range of words and themes of words throughout her career. The most frequently used words, sentiments, and phrases all are powerful examples of the strength it takes to change genres over the various years while still maintaining a common theme throughout her storytelling. Storytelling is the common theme when it comes to Taylor Swift's writing as there are various emotions throughout each album and lyric.
+
+## References
+
+Adashofdata. (n.d.). Adashofdata/taylor_swift_data: Song and Lyric Data collected for Taylor Swift’s 10 studio albums (up through Midnights). GitHub. https://github.com/adashofdata/taylor_swift_data.git 

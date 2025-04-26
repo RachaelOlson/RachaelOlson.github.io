@@ -14,6 +14,8 @@ website:
         text: Interactive Choropleth Maps
       - href: table_scrap_mini_project.qmd #acquistion .qmd link
         text: Table Scraping Acquistion 
+      - href: Mini_Project_4_Olson.qmd
+        text: Text Analysis Techniques
         
 #output formating      
 format:
