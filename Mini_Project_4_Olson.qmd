@@ -66,15 +66,14 @@ ts_data |>
 
 ```
 
-This plot demonstrates that words such as *love* and *time* are her most frequently used words despite commonly used words such as I and my. This demonstrates emotional connection in her words as these two words suggest that her words are rooted in both affection adn reflection.
+This plot demonstrates that words such as *love* and *time* are her most frequently used words despite commonly used words such as I and my. This demonstrates emotional connection in her words as these two suggest both affection and reflection.
 
 
-# Second Plot: Positive and Negatively Related Words in Taylor Swift Songs
+# Second Plot: Positive and Negatively Related Words in Taylor Swift's Songs
 ```{r}
 #| message: FALSE
 #| warning: FALSE
 
-afinn_sentiments <- get_sentiments(lexicon = "afinn") #score from -5 to +5
 bing_sentiments <- get_sentiments(lexicon = "bing") #binary(+/-)
 nrc_sentiments <- get_sentiments(lexicon = "nrc") #emotion words
 
@@ -138,10 +137,9 @@ wordcloud(
   words = empower_words$word, 
   freq = empower_words$n, 
   scale = c(4.5, 1),
+  colors = brewer.pal(6, "Accent"),
   max.words = 10, 
-  random.order = TRUE, 
-  rot.per = 0.15,
-  colors = brewer.pal(6, "Accent"))
+  random.order = TRUE)
 ```
 
 In this word cloud, words such as enough, fight, brave, and strong are just a few strongly empowering words that are represented throughout her music. These words are not solely representing the grasp of the lyrics themselves, as words are typically more powerful together, as well as give a clearer picture of the words they are associated with. 
