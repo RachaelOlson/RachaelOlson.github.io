@@ -1,0 +1,70 @@
+---
+title: "Final Project Workplace"
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| include: FALSE
+#load libraries
+library(tidyverse)
+library(httr)
+library(stringr)
+library(polite)
+library(janitor)
+library(rvest)
+```
+
+```{r}
+#check URL for permission
+robotstxt::paths_allowed("https://worldpopulationreview.com/state-rankings/air-quality-by-state")
+
+#web scraping session beginning
+session <- bow("https://worldpopulationreview.com/state-rankings/air-quality-by-state", force = TRUE)
+
+#scrape the content, extract and convert
+air_result <- scrape(session) |>
+  html_nodes(css = "table") |>
+  html_table(header = TRUE, fill = TRUE)
+
+air_result
+```
+
+```{r}
+air_quality <- air_result[[1]] |>
+  select(State, `Air Quality Index↓`, `Air Quality Rank (US News 2024)`, `Days with Unhealthy Air Quality (US News 2024)`, `Industrial Toxin Concentration (US News 2024) (pounds/mi²)`) |>
+  rename(state = State,
+         air_quality_index = `Air Quality Index↓`,
+         air_quality_rank = `Air Quality Rank (US News 2024)`,
+         unhealt_days = `Days with Unhealthy Air Quality (US News 2024)`,
+         toxin_concentration = `Industrial Toxin Concentration (US News 2024) (pounds/mi²)`) |>
+  filter(!state %in% c("Alaska", "Hawaii", "District of Columbia"))
+
+air_quality
+```
+
+```{r}
+#check URL for permission
+robotstxt::paths_allowed("https://worldpopulationreview.com/states#most-and-least-populous-states")
+
+#web scraping session beginning
+session <- bow("https://worldpopulationreview.com/states#most-and-least-populous-states", force = TRUE)
+
+#scrape the content, extract and convert
+pop_result <- scrape(session) |>
+  html_nodes(css = "table") |>
+  html_table(header = TRUE, fill = TRUE)
+
+pop_result
+```
+
+```{r}
+population <- pop_result[[1]] |>
+  select(State, `2025 Pop.  ↓`, Change, Density) |>
+  rename(state = State,
+         population =`2025 Pop.  ↓`,
+         change = Change,
+         density = Density)
+```
+
